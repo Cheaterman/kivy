@@ -101,7 +101,6 @@ get_texture_id_from_buffer (GstBuffer *buf, guint width, guint height)
   GstVideoInfo v_info;
   guint texture = 0;
   
-  gst_video_info_set_format (&v_info, GST_VIDEO_FORMAT_RGBA, width, height);
   
   if (!gst_video_frame_map (&v_frame, &v_info, buf, GST_MAP_READ | GST_MAP_GL)) {
     g_warning ("Failed to map the video buffer");
