@@ -5,6 +5,8 @@ include "../../include/config.pxi"
 
 from kivy.core.window import Window
 from kivy.core.window.window_sdl2 import WindowSDL
+from kivy.graphics.texture cimport Texture
+from kivy.graphics.cgl cimport GLuint
 
 from libc.stdint cimport uintptr_t
 from libc.stdlib cimport malloc
@@ -22,7 +24,7 @@ cdef extern from '<glib.h>':
     ctypedef long int gulong
     ctypedef int gboolean
     ctypedef void (*GDestroyNotify)(gpointer data)
-    void g_print(const_gchar *format)
+    void g_print(const_gchar *format, ...)
 
 cdef extern from '<glib-object.h>':
     ctypedef void *GValue
@@ -32,7 +34,7 @@ cdef extern from '<glib-object.h>':
     void g_signal_emit_by_name(gpointer *instance, const_gchar *detailed_signal, gpointer *param)
     gint g_value_get_int(GValue *value)
 
-cdef extern from 'gst/gst.h':
+cdef extern from '<gst/gst.h>':
     ctypedef void *GstPipeline
     ctypedef void *GstBin
     ctypedef void *GstElement
@@ -123,6 +125,7 @@ cdef extern from 'gst/gst.h':
     void gst_message_parse_info(
             GstMessage *message, GError **gerror, char **debug)
     GstBuffer *gst_sample_get_buffer(GstSample *sample)
+    void gst_buffer_unref(GstBuffer *buf)
     GstCaps *gst_sample_get_caps(GstSample *sample)
     GstStructure *gst_caps_get_structure(GstCaps *caps, guint index)
     GValue *gst_structure_get_value(GstStructure *struct, const_gchar *prop)
@@ -133,6 +136,10 @@ cdef extern from 'gst/gst.h':
     gboolean gst_element_add_pad(GstElement *element, GstPad *pad)
     GstElement *gst_bin_new(const_gchar *name)
     void gst_bin_add_many(GstBin *bin, GstElement *element_2, GstElement *element_2, void *null)
+    gboolean gst_video_info_from_caps(GstVideoInfo *info, const GstCaps *caps)
+
+cdef extern from '<gst/gstpipeline.h>':
+    GstPipeline* GST_PIPELINE(GstElement* elt) nogil
     
 cdef extern from '<gst/app/gstappsink.h>':
     ctypedef void *GstAppSink
@@ -141,10 +148,20 @@ cdef extern from '<gst/app/gstappsink.h>':
         GstFlowReturn (*new_preroll)(GstAppSink *appsink, gpointer user_data)
         GstFlowReturn (*new_sample)(GstAppSink *appsink, gpointer user_data)
 
+    GstAppSink* GST_APP_SINK(GstElement* elt)
     GstSample* gst_app_sink_pull_preroll (GstAppSink *appsink)
     GstSample* gst_app_sink_pull_sample (GstAppSink *appsink)
-    void gst_app_sink_set_callbacks(GstAppSink *appsink,
-        GstAppSinkCallbacks *callbacks, gpointer user_data, GDestroyNotify notify)
+    void gst_app_sink_set_callbacks(
+        GstAppSink *appsink,
+        GstAppSinkCallbacks *callbacks,
+        gpointer user_data,
+        GDestroyNotify notify
+    )
+
+cdef extern from '<gst/video/video-info.h>':
+    ctypedef struct GstVideoInfo:
+        gint width
+        gint height
 
 DEF GST_USE_UNSTABLE_API = 1
     
@@ -153,7 +170,7 @@ cdef extern from '_gstgl.h':
     void gst_gl_set_bus_cb (GstBus *bus)
     void gst_gl_stop_pipeline (GstPipeline *pipeline) nogil
     
-    guint get_texture_id_from_buffer (GstBuffer *buf, guint width, guint height)
+    guint get_texture_id_from_buffer (GstBuffer *buf, GstVideoInfo *v_info)
 
 cdef extern from '_gstglplayer.h':
     void g_object_set_void(GstElement *element, char *name, void *value)
@@ -195,15 +212,15 @@ cdef void _on_appsink_destroyed(gpointer data):
     # appsink destroyed. i don't know what this callback is supposed to do.
     pass
 
-cdef void _on_appsink_eos(GstAppSink *appsink, void *user_data):
-    g_print('on_appsink_eos')
-    cdef GstGLPlayer player = <object>user_data
+cdef void _on_appsink_eos(GstAppSink *appsink, gpointer user_data):
+    g_print('on_appsink_eos', NULL)
+    cdef GstGLPlayer player = <object><void*>(user_data)
     if player.eos_cb:
         player.eos_cb()        
 
-cdef GstFlowReturn _on_appsink_preroll(GstAppSink *appsink, void *user_data):
-    g_print('on_appsink_preroll')
-    cdef GstGLPlayer player = <object>user_data
+cdef GstFlowReturn _on_appsink_preroll(GstAppSink *appsink, gpointer user_data):
+    g_print('on_appsink_preroll', NULL)
+    cdef GstGLPlayer player = <object><void*>user_data
     cdef GstSample *sample
     
     sample = gst_app_sink_pull_preroll(appsink)
@@ -211,9 +228,9 @@ cdef GstFlowReturn _on_appsink_preroll(GstAppSink *appsink, void *user_data):
 
     return GST_FLOW_OK
 
-cdef GstFlowReturn _on_appsink_sample(GstAppSink *appsink, void *user_data):
-    g_print('on_appsink_sample')
-    cdef GstGLPlayer player = <object>user_data
+cdef GstFlowReturn _on_appsink_sample(GstAppSink *appsink, gpointer user_data):
+    g_print('on_appsink_sample', NULL)
+    cdef GstGLPlayer player = <object><void*>user_data
     cdef GstSample *sample
     
     sample = gst_app_sink_pull_sample(appsink)
@@ -278,6 +295,7 @@ cdef class GstGLPlayer:
     cdef object kivy_window
     cdef gulong hid_sample, hid_message
     cdef object __weakref__
+    cdef Texture texture
 
     def __cinit__(self, *args, **kwargs):
         self.pipeline = self.playbin = self.appsink = self.outbin = self.glupload = self.fakesink = NULL
@@ -357,7 +375,7 @@ cdef class GstGLPlayer:
             g_object_set_caps(self.appsink, 'video/x-raw(memory:GLMemory), format=RGB')
             g_object_set_int(self.appsink, 'max-buffers', 5)
             g_object_set_int(self.appsink, 'drop', 1)
-            g_object_set_int(self.appsink, 'sync', 1)
+            g_object_set_int(self.appsink, 'sync', 0)
             g_object_set_int(self.appsink, 'qos', 1)
             
             self.outbin = gst_bin_new('outbin')
@@ -400,18 +418,26 @@ cdef class GstGLPlayer:
     cdef void process_sample(self, GstSample *sample) with gil:
         cdef GstBuffer *buf
         cdef GstCaps *caps
-        cdef GstStructure *struct
+        cdef GstVideoInfo v_info
+        cdef GLuint tex_id
         
         if self.texture_cb:
             caps = gst_sample_get_caps(sample)
-            struct = gst_caps_get_structure(caps, 0)
-            width = g_value_get_int(gst_structure_get_value(struct, 'width'))
-            height = g_value_get_int(gst_structure_get_value(struct, 'height'))
+            gst_video_info_from_caps(&v_info, caps);
         
             buf = gst_sample_get_buffer(sample)
-            texture = get_texture_id_from_buffer(buf, width, height)
-            
-            self.texture_cb(width, height, texture)
+
+            tex_id = get_texture_id_from_buffer(buf, &v_info)
+            if not self.texture:
+                self.texture = self.texture_cb(
+                    v_info.width,
+                    v_info.height,
+                    tex_id
+                )
+            else:
+                self.texture._id = tex_id
+
+            gst_buffer_unref(buf)
         
     def play(self):
         if self.pipeline != NULL:
@@ -424,7 +450,7 @@ cdef class GstGLPlayer:
     def stop(self):
         if self.pipeline != NULL:
             with nogil:
-                gst_gl_stop_pipeline(self.pipeline)
+                gst_gl_stop_pipeline(GST_PIPELINE(self.pipeline))
                 gst_element_set_state(self.pipeline, GST_STATE_READY)
 
     def pause(self):
@@ -444,7 +470,7 @@ cdef class GstGLPlayer:
             # state is set to NULL, we need to query it. We also put a 5s
             # timeout for safety, but normally, nobody should hit it.
             with nogil:
-                gst_gl_stop_pipeline(self.pipeline)
+                gst_gl_stop_pipeline(GST_PIPELINE(self.pipeline))
                 gst_element_get_state(self.pipeline, &current_state,
                         &pending_state, <GstClockTime>5e9)
             gst_object_unref(self.pipeline)

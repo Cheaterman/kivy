@@ -89,20 +89,18 @@ void gst_gl_stop_pipeline (GstPipeline *pipeline) {
     
     gst_element_set_state (GST_ELEMENT (pipeline), GST_STATE_NULL);
 
-    glXMakeCurrent (x11_display, None, 0);
+    SDL_GL_MakeCurrent(sdl_window, NULL);
     
     GST_OBJECT_UNLOCK(GST_OBJECT (gst_gl_display));
 }
 
 unsigned int
-get_texture_id_from_buffer (GstBuffer *buf, guint width, guint height)
+get_texture_id_from_buffer (GstBuffer *buf, GstVideoInfo *v_info)
 {
   GstVideoFrame v_frame;
-  GstVideoInfo v_info;
   guint texture = 0;
   
-  
-  if (!gst_video_frame_map (&v_frame, &v_info, buf, GST_MAP_READ | GST_MAP_GL)) {
+  if (!gst_video_frame_map (&v_frame, v_info, buf, (GstMapFlags) (GST_MAP_READ | GST_MAP_GL))) {
     g_warning ("Failed to map the video buffer");
     return texture;
   }

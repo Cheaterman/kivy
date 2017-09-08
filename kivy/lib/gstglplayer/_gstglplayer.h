@@ -31,10 +31,9 @@ static void g_object_set_int(GstElement *element, char *name, int value)
 	g_object_set(G_OBJECT(element), name, value, NULL);
 }
 
-static void dump_dot_file(GstPipeline *pipeline, const gchar *filename)
+static void dump_dot_file(GstElement *pipeline, const gchar *filename)
 {
-    
-    GST_DEBUG_BIN_TO_DOT_FILE(GST_BIN(pipeline), GST_DEBUG_GRAPH_SHOW_ALL, filename);
+    GST_DEBUG_BIN_TO_DOT_FILE(GST_BIN(GST_PIPELINE(pipeline)), GST_DEBUG_GRAPH_SHOW_ALL, filename);
 }
 
 typedef void (*appcallback_t)(void *, int, int, char *, int);
