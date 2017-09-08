@@ -479,25 +479,7 @@ if c_options['use_sdl2'] or (
             c_options['use_sdl2'] = True
 
 
-if platform == 'linux' and c_options['use_sdl2']:
-    gst_app_flags = pkgconfig('gstreamer-app-1.0')
-    gst_gl_flags = pkgconfig('gstreamer-gl-1.0')
-    if 'libraries' in gst_app_flags and 'libraries' in gst_gl_flags:
-        c_options['use_gstreamer_gl'] = True
-
-if platform == 'linux' and c_options['use_sdl2']:
-    gst_app_flags = pkgconfig('gstreamer-app-1.0')
-    gst_gl_flags = pkgconfig('gstreamer-gl-1.0')
-    if 'libraries' in gst_app_flags and 'libraries' in gst_gl_flags:
-        c_options['use_gstreamer_gl'] = True
-
-if platform == 'linux' and c_options['use_sdl2']:
-    gst_app_flags = pkgconfig('gstreamer-app-1.0')
-    gst_gl_flags = pkgconfig('gstreamer-gl-1.0')
-    if 'libraries' in gst_app_flags and 'libraries' in gst_gl_flags:
-        c_options['use_gstreamer_gl'] = True
-
-if platform == 'linux' and c_options['use_sdl2']:
+if platform.startswith('linux') and c_options['use_sdl2']:
     gst_app_flags = pkgconfig('gstreamer-app-1.0')
     gst_gl_flags = pkgconfig('gstreamer-gl-1.0')
     if 'libraries' in gst_app_flags and 'libraries' in gst_gl_flags:
