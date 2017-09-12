@@ -28,7 +28,7 @@ cdef extern from '<glib.h>':
 cdef extern from '<glib-object.h>':
     ctypedef void *GValue
     ctypedef void *GCallback
-    
+
     gulong g_signal_connect(gpointer *instance, const_gchar *detailed_signal, GCallback *c_handler, void *data)
     void g_signal_emit_by_name(gpointer *instance, const_gchar *detailed_signal, gpointer *param)
     gint g_value_get_int(GValue *value)
@@ -94,7 +94,7 @@ cdef extern from '<gst/gst.h>':
 
     ctypedef struct GstMessage:
         GstMessageType type
-    
+
     int GST_SECOND
     bool gst_init_check(int *argc, char ***argv, GError **error)
     bool gst_is_initialized()
@@ -143,7 +143,7 @@ cdef extern from '<gst/gst.h>':
 
 cdef extern from '<gst/gstpipeline.h>':
     GstPipeline* GST_PIPELINE(GstElement* elt) nogil
-    
+
 cdef extern from '<gst/app/gstappsink.h>':
     ctypedef void *GstAppSink
     ctypedef struct GstAppSinkCallbacks:
@@ -167,7 +167,7 @@ cdef extern from '<gst/video/video-info.h>':
         gint height
 
 DEF GST_USE_UNSTABLE_API = 1
-    
+
 cdef extern from '_gstglplayer.h':
     void g_object_set_void(GstElement *element, char *name, void *value)
     void g_object_set_double(GstElement *element, char *name, double value) nogil
@@ -212,7 +212,7 @@ cdef void _on_appsink_eos(GstAppSink *appsink, gpointer user_data):
     g_print('on_appsink_eos\n', NULL)
     cdef GstGLPlayer player = <GstGLPlayer>user_data
     if player.eos_cb:
-        player.eos_cb()        
+        player.eos_cb()
 
 cdef GstFlowReturn _on_appsink_preroll(GstAppSink *appsink, gpointer user_data):
     g_print('on_appsink_preroll\n', NULL)
@@ -220,7 +220,7 @@ cdef GstFlowReturn _on_appsink_preroll(GstAppSink *appsink, gpointer user_data):
     cdef GstSample *sample
     cdef GstCaps *caps
     cdef GstVideoInfo v_info
-    
+
     sample = gst_app_sink_pull_preroll(appsink)
     if sample:
         player.init_texture(sample)
@@ -231,7 +231,7 @@ cdef GstFlowReturn _on_appsink_sample(GstAppSink *appsink, gpointer user_data):
     g_print('on_appsink_sample\n', NULL)
     cdef GstGLPlayer player = <GstGLPlayer>user_data
     cdef GstSample *sample
-    
+
     sample = gst_app_sink_pull_sample(appsink)
     if sample:
         player.process_sample(sample)
@@ -289,7 +289,7 @@ cdef class GstGLPlayer:
     cdef GstElement *glupload
     cdef GstElement *appsink
     cdef GstElement *fakesink
-    cdef GstBus *bus    
+    cdef GstBus *bus
 
     cdef object uri, eos_cb, get_texture_cb, message_cb
     cdef object kivy_window
@@ -320,9 +320,9 @@ cdef class GstGLPlayer:
 
         if not isinstance(Window, WindowSDL):
             raise GstGLPlayerException('Window is not using SDL2 provider.')
-        
+
         self.gst_gl_init()
-    
+
     cdef void gst_gl_init(self):
         cdef uintptr_t sdl_window_pointer
         sdl_window_pointer = Window.get_sdl2_window_pointer()
@@ -340,7 +340,7 @@ cdef class GstGLPlayer:
         cdef GstPad *sinkpad
         cdef GstPad *ghost_sinkpad
         cdef GstAppSinkCallbacks *callbacks = <GstAppSinkCallbacks *>malloc(sizeof(GstAppSinkCallbacks))
-                
+
         # if already loaded before, clean everything.
         if self.pipeline != NULL:
             self.unload()
@@ -358,7 +358,7 @@ cdef class GstGLPlayer:
         if self.eos_cb or self.message_cb:
             self.hid_message = c_bus_connect_message(
                     self.bus, _on_gstplayer_message, <void *>self)
-        
+
         gst_gl_set_bus_cb(self.bus);
 
         # instantiate the playbin
@@ -383,13 +383,13 @@ cdef class GstGLPlayer:
             g_object_set_int(self.appsink, 'drop', 1)
             g_object_set_int(self.appsink, 'sync', 0)
             g_object_set_int(self.appsink, 'qos', 1)
-            
+
             self.outbin = gst_bin_new('outbin')
             gst_bin_add_many(<GstBin *>self.outbin, self.glupload, self.appsink, NULL);
 
             if not gst_element_link(self.glupload, self.appsink):
                 raise GstGLPlayerException('Could not link glupload and appsink')
-            
+
             sinkpad = gst_element_get_static_pad(self.glupload, 'sink')
             ghost_sinkpad = gst_ghost_pad_new('sink', sinkpad)
             gst_pad_set_active(ghost_sinkpad, <gboolean>True)
@@ -443,13 +443,13 @@ cdef class GstGLPlayer:
         )
 
         gst_sample_unref(sample)
-    
+
     cdef void process_sample(self, GstSample *sample) with gil:
         cdef GstBuffer *buf
         cdef GstCaps *caps
         cdef GstVideoInfo v_info
         cdef GLuint tex_id
-        
+
         caps = gst_sample_get_caps(sample)
         gst_video_info_from_caps(&v_info, caps)
 
@@ -459,7 +459,7 @@ cdef class GstGLPlayer:
         self.texture._id = tex_id
 
         gst_sample_unref(sample)
-        
+
     def play(self):
         if self.pipeline != NULL:
             with nogil:
@@ -477,7 +477,6 @@ cdef class GstGLPlayer:
                 gst_element_set_state(self.pipeline, GST_STATE_PAUSED)
 
     def unload(self):
-
         if self.bus != NULL and self.hid_message != 0:
             c_signal_disconnect(<GstElement *>self.bus, self.hid_message)
             self.hid_message = 0

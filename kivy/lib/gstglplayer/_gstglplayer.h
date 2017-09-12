@@ -19,27 +19,27 @@ GstGLContext *gst_gl_context;
 
 static void c_glib_iteration(int count)
 {
-	while (count > 0 && g_main_context_pending(NULL))
-	{
-		count --;
-		g_main_context_iteration(NULL, FALSE);
-	}
+    while(count > 0 && g_main_context_pending(NULL))
+    {
+        count --;
+        g_main_context_iteration(NULL, FALSE);
+    }
 }
 
 static void g_object_set_void(GstElement *element, char *name, void *value)
 {
-	g_object_set(G_OBJECT(element), name, value, NULL);
+    g_object_set(G_OBJECT(element), name, value, NULL);
 }
 
 static void g_object_set_double(GstElement *element, char *name, double value)
 {
-	g_object_set(G_OBJECT(element), name, value, NULL);
+    g_object_set(G_OBJECT(element), name, value, NULL);
 }
 
 static void g_object_set_caps(GstElement *element, char *value)
 {
-	GstCaps *caps = gst_caps_from_string(value);
-	g_object_set(G_OBJECT(element), "caps", caps, NULL);
+    GstCaps *caps = gst_caps_from_string(value);
+    g_object_set(G_OBJECT(element), "caps", caps, NULL);
 }
 
 static void g_object_set_int(GstElement *element, char *name, int value)
@@ -50,10 +50,10 @@ static void g_object_set_int(GstElement *element, char *name, int value)
 typedef void(*appcallback_t)(void *, int, int, char *, int);
 typedef void(*buscallback_t)(void *, GstMessage *);
 typedef struct {
-	appcallback_t callback;
-	buscallback_t bcallback;
-	char eventname[15];
-	PyObject *userdata;
+    appcallback_t callback;
+    buscallback_t bcallback;
+    char eventname[15];
+    PyObject *userdata;
 } callback_data_t;
 
 static void c_signal_free_data(gpointer data, GClosure *closure)
