@@ -860,8 +860,8 @@ if c_options['use_gstreamer_gl']:
         sdl2_flags, sdl2_depends, {
             'depends': [
                 'lib/gstglplayer/_gstglplayer.h',
-                'lib/gstglplayer/_gstgl.c',
-                'lib/gstglplayer/_gstgl.h']})
+            ]
+        })
 
 
 # -----------------------------------------------------------------------------

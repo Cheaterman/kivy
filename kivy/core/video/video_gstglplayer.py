@@ -4,17 +4,19 @@ Video GstGLplayer
 
 .. versionadded:: 1.10.2
 
-Implementation of a VideoBase with Kivy :class:`~kivy.lib.gstglplayer.GstGLPlayer`
-Uses Gstreamer 1.0's OpenGL support for smooth video playback on supported platforms.
+Implementation of a VideoBase with Kivy
+:class:`~kivy.lib.gstglplayer.GstGLPlayer`
+Uses Gstreamer 1.0's OpenGL support for smooth video playback on supported
+platforms.
 '''
 
+from kivy.lib.gstglplayer import GstGLPlayer, get_gst_version
+from kivy.graphics.texture import Texture
+from kivy.core.video import VideoBase
+from kivy.logger import Logger
 from kivy.clock import Clock
 from kivy.compat import PY2
-from kivy.core.video import VideoBase
-from kivy.graphics.texture import Texture
 from kivy.graphics.opengl import GL_TEXTURE_2D
-from kivy.lib.gstglplayer import GstGLPlayer, get_gst_version
-from kivy.logger import Logger
 from threading import Lock
 from functools import partial
 from os.path import realpath
@@ -27,6 +29,22 @@ else:
 
 Logger.info('VideoGstGLplayer: Using Gstreamer {}'.format(
     '.'.join(map(str, get_gst_version()))))
+
+
+def _on_gstplayer_preroll(video, width, height, tex_id):
+    video = video()
+    # if we still receive the video but no more player, remove it.
+    if not video:
+        return
+    video._texture = texture = Texture(
+        width,
+        height,
+        GL_TEXTURE_2D,
+        texid=tex_id,
+    )
+    texture.flip_vertical()
+
+    return texture
 
 
 def _on_gstplayer_message(mtype, message):
@@ -42,8 +60,6 @@ class VideoGstGLplayer(VideoBase):
 
     def __init__(self, **kwargs):
         self.player = None
-        self._next_texture = None
-        self._on_load_called = False
         super(VideoGstGLplayer, self).__init__(**kwargs)
 
     def _on_gst_eos_sync(self):
@@ -53,14 +69,21 @@ class VideoGstGLplayer(VideoBase):
         Logger.debug('VideoGstGLplayer: Load <{}>'.format(self._filename))
         uri = self._get_uri()
         wk_self = ref(self)
-        self.player = GstGLPlayer(uri, self._update_texture,
-                                self._on_gst_eos_sync, _on_gstplayer_message)
+        self.get_texture_callback = partial(_on_gstplayer_preroll, wk_self)
+        self.player = GstGLPlayer(
+            uri,
+            self.get_texture_callback,
+            self._on_gst_eos_sync,
+            _on_gstplayer_message
+        )
         self.player.load()
+        self.dispatch('on_load')
 
     def unload(self):
         if self.player:
             self.player.unload()
             self.player = None
+        self._texture = None
 
     def stop(self):
         super(VideoGstGLplayer, self).stop()
@@ -91,23 +114,7 @@ class VideoGstGLplayer(VideoBase):
 
     def _update(self, dt):
         if self._texture:
-            # There's probably a better way to do this, TODO
-            if not self._on_load_called:
-                self.dispatch('on_load')
-                self._on_load_called = True
-
             self.dispatch('on_frame')
-
-    def _update_texture(self, width, height, tex_id):
-        self._texture = texture = Texture(
-            width,
-            height,
-            GL_TEXTURE_2D,
-            texid=tex_id,
-        )
-        texture.flip_vertical()
-
-        return texture
 
     def _get_uri(self):
         uri = self.filename
