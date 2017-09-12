@@ -176,7 +176,6 @@ cdef extern from '_gstglplayer.h':
     gulong c_bus_connect_message(GstBus *bus,
             buscallback_t callback, void *userdata)
     void c_signal_disconnect(GstElement *appsink, gulong handler_id)
-    void c_glib_iteration(int count)
 
     void gst_gl_init (SDL_Window *window)
     void gst_gl_set_bus_cb (GstBus *bus)
@@ -276,10 +275,6 @@ def get_gst_version():
     cdef unsigned int major, minor, micro, nano
     gst_version(&major, &minor, &micro, &nano)
     return (major, minor, micro, nano)
-
-
-def glib_iteration(int loop):
-    c_glib_iteration(loop)
 
 
 cdef class GstGLPlayer:

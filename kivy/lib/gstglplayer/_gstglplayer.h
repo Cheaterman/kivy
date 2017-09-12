@@ -17,64 +17,64 @@ GstGLDisplay *gst_gl_display;
 GstGLContext *gst_gl_context;
 
 
-static void c_glib_iteration(int count)
-{
-    while(count > 0 && g_main_context_pending(NULL))
-    {
-        count --;
-        g_main_context_iteration(NULL, FALSE);
-    }
-}
-
-static void g_object_set_void(GstElement *element, char *name, void *value)
+static void
+g_object_set_void(GstElement *element, char *name, void *value)
 {
     g_object_set(G_OBJECT(element), name, value, NULL);
 }
 
-static void g_object_set_double(GstElement *element, char *name, double value)
+static void
+g_object_set_double(GstElement *element, char *name, double value)
 {
     g_object_set(G_OBJECT(element), name, value, NULL);
 }
 
-static void g_object_set_caps(GstElement *element, char *value)
+static void
+g_object_set_caps(GstElement *element, char *value)
 {
     GstCaps *caps = gst_caps_from_string(value);
     g_object_set(G_OBJECT(element), "caps", caps, NULL);
 }
 
-static void g_object_set_int(GstElement *element, char *name, int value)
+static void
+g_object_set_int(GstElement *element, char *name, int value)
 {
     g_object_set(G_OBJECT(element), name, value, NULL);
 }
 
 typedef void(*appcallback_t)(void *, int, int, char *, int);
 typedef void(*buscallback_t)(void *, GstMessage *);
-typedef struct {
+typedef struct
+{
     appcallback_t callback;
     buscallback_t bcallback;
     char eventname[15];
     PyObject *userdata;
 } callback_data_t;
 
-static void c_signal_free_data(gpointer data, GClosure *closure)
+static void
+c_signal_free_data(gpointer data, GClosure *closure)
 {
     callback_data_t *cdata = data;
     Py_DECREF(cdata->userdata);
     free(cdata);
 }
 
-static void c_signal_disconnect(GstElement *element, gulong handler_id)
+static void
+c_signal_disconnect(GstElement *element, gulong handler_id)
 {
     g_signal_handler_disconnect(element, handler_id);
 }
 
-static gboolean c_on_bus_message(GstBus *bus, GstMessage *message, callback_data_t *data)
+static gboolean
+c_on_bus_message(GstBus *bus, GstMessage *message, callback_data_t *data)
 {
     data->bcallback(data->userdata, message);
     return TRUE;
 }
 
-static gulong c_bus_connect_message(GstBus *bus, buscallback_t callback, PyObject *userdata)
+static gulong
+c_bus_connect_message(GstBus *bus, buscallback_t callback, PyObject *userdata)
 {
     callback_data_t *data = (callback_data_t *)malloc(sizeof(callback_data_t));
     if(data == NULL)
@@ -93,10 +93,12 @@ static gulong c_bus_connect_message(GstBus *bus, buscallback_t callback, PyObjec
 }
 
 void
-gst_gl_init(SDL_Window *_sdl_window) {
+gst_gl_init(SDL_Window *_sdl_window)
+{
     GLXContext glx_context = NULL;
 
-    if(sdl_window == NULL) {
+    if(sdl_window == NULL)
+    {
         sdl_window = _sdl_window;
         sdl_gl_context = SDL_GL_GetCurrentContext();
 
@@ -119,21 +121,26 @@ gst_gl_init(SDL_Window *_sdl_window) {
     SDL_GL_MakeCurrent(sdl_window, sdl_gl_context);
 }
 
-static
-gboolean gst_gl_bus_cb(GstBus *bus, GstMessage *msg, gpointer *data) {
-    switch(GST_MESSAGE_TYPE(msg)) {
+static gboolean
+gst_gl_bus_cb(GstBus *bus, GstMessage *msg, gpointer *data)
+{
+    switch(GST_MESSAGE_TYPE(msg))
+    {
         case GST_MESSAGE_NEED_CONTEXT:
         {
             const gchar *context_type;
 
             gst_message_parse_context_type(msg, &context_type);
 
-            if(g_strcmp0(context_type, GST_GL_DISPLAY_CONTEXT_TYPE) == 0) {
+            if(g_strcmp0(context_type, GST_GL_DISPLAY_CONTEXT_TYPE) == 0)
+            {
                 GstContext *display_context = gst_context_new(GST_GL_DISPLAY_CONTEXT_TYPE, TRUE);
                 gst_context_set_gl_display(display_context, gst_gl_display);
                 gst_element_set_context(GST_ELEMENT(msg->src), display_context);
                 return TRUE;
-            } else if(g_strcmp0(context_type, "gst.gl.app_context") == 0) {
+            }
+            else if(g_strcmp0(context_type, "gst.gl.app_context") == 0)
+            {
                 GstContext *app_context = gst_context_new("gst.gl.app_context", TRUE);
                 GstStructure *s = gst_context_writable_structure(app_context);
                 gst_structure_set(s, "context", GST_GL_TYPE_CONTEXT, gst_gl_context, NULL);
@@ -150,13 +157,15 @@ gboolean gst_gl_bus_cb(GstBus *bus, GstMessage *msg, gpointer *data) {
 }
 
 void
-gst_gl_set_bus_cb(GstBus *bus) {
+gst_gl_set_bus_cb(GstBus *bus)
+{
     gst_bus_add_signal_watch(bus);
     g_signal_connect(bus, "sync-message", G_CALLBACK(gst_gl_bus_cb), NULL);
 }
 
 void
-gst_gl_stop_pipeline(GstPipeline *pipeline) {
+gst_gl_stop_pipeline(GstPipeline *pipeline)
+{
     SDL_GL_MakeCurrent(sdl_window, sdl_gl_context);
     gst_element_set_state(GST_ELEMENT(pipeline), GST_STATE_NULL);
     SDL_GL_MakeCurrent(sdl_window, NULL);
@@ -173,7 +182,8 @@ get_texture_id_from_buffer(GstBuffer *buf, GstVideoInfo *v_info)
         v_info,
         buf,
         (GstMapFlags)(GST_MAP_READ | GST_MAP_GL)
-    )) {
+    ))
+    {
         g_warning("Failed to map the video buffer");
         return texture;
     }
